@@ -9,7 +9,7 @@ from textwrap import dedent
 from typing import Iterable
 
 import numpy as np
-from datasets import ClassLabel, Dataset, DatasetDict, Features, Image, Value
+from datasets import Array2D, ClassLabel, Dataset, DatasetDict, Features, Image, Value
 from huggingface_hub import HfApi, hf_hub_download
 from PIL import Image as PILImage
 from torchvision.datasets import MNIST
@@ -25,8 +25,9 @@ BASE_FEATURES = Features(
 )
 NOISY_FEATURES = Features(
     {
-        "source_image": Image(),
-        "noisy_image": Image(),
+        "image": Image(),
+        "noise": Array2D(shape=(28, 28), dtype="float32"),
+        "raw_image": Image(),
         "label": LABEL_FEATURE,
         "source_index": Value("int32"),
         "replica_index": Value("int16"),
@@ -136,11 +137,12 @@ def noisy_examples(
         label = int(raw.targets[idx])
         for replica_index, variance in enumerate(variances):
             std = math.sqrt(float(variance))
-            noise = rng.normal(loc=0.0, scale=std, size=base.shape).astype(np.float32)
-            noisy = np.clip(base + noise, 0.0, 1.0)
+            sampled_noise = rng.normal(loc=0.0, scale=std, size=base.shape).astype(np.float32)
+            noisy = np.clip(base + sampled_noise, 0.0, 1.0)
             yield {
-                "source_image": _pil_image(raw.data[idx].numpy()),
-                "noisy_image": _pil_image((noisy * 255.0).round().astype(np.uint8)),
+                "image": _pil_image((noisy * 255.0).round().astype(np.uint8)),
+                "noise": sampled_noise,
+                "raw_image": _pil_image(raw.data[idx].numpy()),
                 "label": label,
                 "source_index": idx,
                 "replica_index": replica_index,
@@ -256,18 +258,19 @@ def noisy_card_body(
 
         ## Dataset Summary
 
-        This dataset expands MNIST by creating multiple Gaussian-noisy variants of each original example. For every clean source image, `{copies_per_example}` replicas are generated with different Gaussian noise variances, making the dataset suitable for corruption estimation or noise-level prediction tasks.
+        This dataset expands MNIST by creating multiple Gaussian-noisy variants of each original example. Each row is structured for direct supervised training: the input is a noisy image and the target is the original sampled Gaussian noise map, with the clean image kept as a reference column.
 
-        Noise is sampled from a zero-mean normal distribution on normalized pixel values in `[0, 1]`, added to the clean image, clipped back to `[0, 1]`, and converted to 8-bit grayscale.
+        Noise is sampled from a zero-mean normal distribution on normalized pixel values in `[0, 1]`, added to the clean image, clipped back to `[0, 1]`, and converted to 8-bit grayscale. The `noise` column stores the original sampled Gaussian draw before clipping.
 
         ## Columns
 
-        - `source_image`: the clean 28x28 grayscale MNIST image
-        - `noisy_image`: the Gaussian-corrupted counterpart used for training
+        - `image`: the noisy 28x28 grayscale input image used as the model source
+        - `noise`: the 28x28 float Gaussian noise sample in normalized pixel space
+        - `raw_image`: the clean 28x28 grayscale reference image
         - `label`: the original digit class from `0` to `9`
         - `source_index`: the original example index inside the source MNIST split
-        - `replica_index`: which noisy replica this row corresponds to for the source image
-        - `noise_variance`: the Gaussian variance used to generate `noisy_image`
+        - `replica_index`: which noisy replica this row corresponds to for the clean source image
+        - `noise_variance`: the Gaussian variance used to sample the stored noise map
 
         ## Splits
 
@@ -284,7 +287,7 @@ def noisy_card_body(
 
         ## Intended Use
 
-        This dataset is intended for experiments where each training row should already be a direct `(source_image, noisy_image)` pair with the target noise level attached. It is suited for noise-level prediction, corruption estimation, and denoising supervision.
+        This dataset is intended for experiments where each training row should already contain a noisy source image and the original noise sample used to corrupt it. It is suited for noise prediction and generative or iterative denoising setups that operate directly on sampled noise fields.
 
         ## Load Example
 
@@ -293,8 +296,9 @@ def noisy_card_body(
 
         ds = load_dataset("{repo_id}")
         sample = ds["train"][0]
-        print(sample["source_image"])
-        print(sample["noisy_image"])
+        print(sample["image"])
+        print(sample["noise"][0][0])
+        print(sample["raw_image"])
         print(sample["noise_variance"])
         ```
         """
