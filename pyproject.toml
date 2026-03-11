@@ -1,0 +1,23 @@
+[project]
+name = "sandbox-mnist"
+version = "0.1.0"
+description = "Build MNIST datasets and noisy Gaussian variants for Hugging Face."
+requires-python = ">=3.11"
+dependencies = [
+  "datasets>=3.4.1",
+  "huggingface_hub>=0.31.0",
+  "numpy>=2.2.4",
+  "pillow>=11.1.0",
+  "torch>=2.6.0",
+  "torchvision>=0.21.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
