@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from mnist_hub.train_noise_predictor import (
     NoisePredictor,
+    build_model_input,
     image_to_tensor,
     load_split_dataset,
     resolve_device,
@@ -75,8 +76,11 @@ def main() -> None:
 
     model = load_model(args.checkpoint, device)
     with torch.no_grad():
-        input_tensor = image_to_tensor(row["image"]).unsqueeze(0).to(device)
-        predicted_noise = model(input_tensor).squeeze(0).squeeze(0).cpu().numpy()
+        image_tensor = image_to_tensor(row["image"]).unsqueeze(0).to(device)
+        label_tensor = torch.tensor([row["label"]], dtype=torch.long, device=device)
+        variance_tensor = torch.tensor([row["noise_variance"]], dtype=torch.float32, device=device)
+        model_input = build_model_input(image_tensor, label_tensor, variance_tensor)
+        predicted_noise = model(model_input).squeeze(0).squeeze(0).cpu().numpy()
 
     true_noise = np.asarray(row["noise"], dtype=np.float32)
     scale = float(max(np.max(np.abs(true_noise)), np.max(np.abs(predicted_noise)), 1e-6))

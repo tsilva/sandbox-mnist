@@ -15,6 +15,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 
+NUM_CLASSES = 10
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train a model that predicts the additive noise residual from a noisy MNIST image."
@@ -111,6 +114,25 @@ def image_to_tensor(image: PILImage.Image) -> torch.Tensor:
     return torch.from_numpy(array).unsqueeze(0)
 
 
+def labels_to_condition_maps(labels: torch.Tensor, height: int, width: int) -> torch.Tensor:
+    one_hot = torch.nn.functional.one_hot(labels, num_classes=NUM_CLASSES).to(dtype=torch.float32)
+    return one_hot.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, height, width)
+
+
+def variances_to_condition_maps(variances: torch.Tensor, height: int, width: int) -> torch.Tensor:
+    return variances.to(dtype=torch.float32).view(-1, 1, 1, 1).expand(-1, 1, height, width)
+
+
+def build_model_input(images: torch.Tensor, labels: torch.Tensor, variances: torch.Tensor) -> torch.Tensor:
+    _, _, height, width = images.shape
+    label_condition = labels_to_condition_maps(labels, height, width).to(device=images.device, dtype=images.dtype)
+    variance_condition = variances_to_condition_maps(variances, height, width).to(
+        device=images.device,
+        dtype=images.dtype,
+    )
+    return torch.cat([images, label_condition, variance_condition], dim=1)
+
+
 class NoiseDataset(torch.utils.data.Dataset):
     def __init__(self, split: Dataset) -> None:
         self.split = split
@@ -123,6 +145,7 @@ class NoiseDataset(torch.utils.data.Dataset):
         return {
             "image": image_to_tensor(row["image"]),
             "noise": torch.tensor(row["noise"], dtype=torch.float32).unsqueeze(0),
+            "label": torch.tensor(row["label"], dtype=torch.long),
             "variance": torch.tensor(row["noise_variance"], dtype=torch.float32),
         }
 
@@ -131,7 +154,7 @@ class NoisePredictor(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.Conv2d(1 + NUM_CLASSES + 1, 32, kernel_size=3, padding=1),
             nn.GELU(),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.GELU(),
@@ -168,14 +191,17 @@ def run_epoch(
 
     for batch in loader:
         images = batch["image"].to(device)
+        labels = batch["label"].to(device)
+        variances = batch["variance"].to(device)
         target_noise = batch["noise"].to(device)
         batch_size = images.size(0)
+        conditioned_input = build_model_input(images, labels, variances)
 
         if is_train:
             optimizer.zero_grad(set_to_none=True)
 
         with torch.set_grad_enabled(is_train):
-            predicted_noise = model(images)
+            predicted_noise = model(conditioned_input)
             loss = criterion(predicted_noise, target_noise)
             mae = torch.mean(torch.abs(predicted_noise - target_noise))
             if is_train:
@@ -221,8 +247,7 @@ def build_loader(split: Dataset, batch_size: int, num_workers: int, shuffle: boo
     )
 
 
-def main() -> None:
-    args = parse_args()
+def train_model(args: argparse.Namespace) -> dict[str, object]:
     set_seed(args.seed)
     device = resolve_device(args.device)
     dataset = load_split_dataset(args.dataset_path, args.dataset_repo)
@@ -350,22 +375,25 @@ def main() -> None:
         optimizer=None,
     )
     with (args.output_dir / "metrics.json").open("w") as f:
-        json.dump(
-            {
-                "device": str(device),
-                "train_examples": len(train_split),
-                "val_examples": len(val_split),
-                "test_examples": len(test_split),
-                "baseline_val": asdict(baseline_val),
-                "baseline_test": asdict(baseline),
-                "best_epoch": best_epoch,
-                "best_val": asdict(best_val_metrics),
-                "best_test": asdict(best_test_metrics),
-                "history": history,
-            },
-            f,
-            indent=2,
-        )
+        metrics = {
+            "device": str(device),
+            "train_examples": len(train_split),
+            "val_examples": len(val_split),
+            "test_examples": len(test_split),
+            "baseline_val": asdict(baseline_val),
+            "baseline_test": asdict(baseline),
+            "best_epoch": best_epoch,
+            "best_val": asdict(best_val_metrics),
+            "best_test": asdict(best_test_metrics),
+            "history": history,
+        }
+        json.dump(metrics, f, indent=2)
+    return metrics
+
+
+def main() -> None:
+    args = parse_args()
+    train_model(args)
 
 
 if __name__ == "__main__":
