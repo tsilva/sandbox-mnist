@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  merge_group:
+    types:
+      - checks_requested
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UV_NO_CONFIG: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Validate lock and install
+        run: |
+          uv lock --check --exclude-newer '7 days'
+          uv sync --frozen --extra dev
+
+      - name: Audit locked dependencies
+        run: uv audit --frozen
+
+      - name: Lint
+        run: uv run --frozen ruff check .
+
+      - name: Test security and model compatibility
+        run: uv run --frozen pytest -q
+
+      - name: Import and CLI smoke
+        run: |
+          uv run --frozen python -c "import datasets, modal, PIL, torch, torchvision; import mnist_hub"
+          uv run --frozen python -m mnist_hub.train_noise_predictor --help
+
+      - name: Build package
+        run: uv build

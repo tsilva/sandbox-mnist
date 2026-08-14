@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path("runs/smoke_noise_predictor/best_model.pt"),
+        default=Path("runs/modal_variance_full_best_val_model.pt"),
     )
     parser.add_argument(
         "--dataset-path",

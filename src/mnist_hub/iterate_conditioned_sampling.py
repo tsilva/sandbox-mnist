@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path("runs/full_conditioned_noise_predictor/best_val_model.pt"),
+        default=Path("runs/modal_variance_full_best_val_model.pt"),
     )
     parser.add_argument("--label", type=int, default=7)
     parser.add_argument("--seed", type=int, default=42)
