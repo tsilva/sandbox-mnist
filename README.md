@@ -108,7 +108,7 @@ Modal uses the app name `sandbox-mnist-noise-trainer`, a T4 GPU, and the persist
 
 ```bash
 uv run python -m mnist_hub.visualize_noise_prediction \
-  --checkpoint runs/full_noise_predictor/best_val_model.pt \
+  --checkpoint runs/modal_variance_full_best_val_model.pt \
   --split test \
   --index 0 \
   --output artifacts/full_run_best_prediction_sample.png
@@ -118,7 +118,7 @@ uv run python -m mnist_hub.visualize_noise_prediction \
 
 ```bash
 uv run python -m mnist_hub.iterate_conditioned_sampling \
-  --checkpoint runs/full_conditioned_noise_predictor/best_val_model.pt \
+  --checkpoint runs/modal_variance_full_best_val_model.pt \
   --label 7 \
   --variance 0.10 \
   --steps 10 25 50 \
@@ -200,7 +200,10 @@ artifacts/                         # Committed PNG outputs from dataset/model ex
 - Hugging Face publishing requires `HF_TOKEN` or `--token`; local dataset generation works with `--skip-push`.
 - Device selection accepts `auto`, `cpu`, `cuda`, or `mps`; `auto` prefers CUDA, then Apple MPS, then CPU.
 - The noisy `image` column is clipped to `[0, 1]` after adding noise, while the `noise` column stores the original sampled Gaussian tensor before clipping.
-- This repo does not currently define a test suite or console-script entry points in `pyproject.toml`.
+- The focused pytest suite covers registry-only dependency sources, image decoder rejection,
+  invalid schedules, the current model forward path, and committed-checkpoint compatibility.
+- The project does not define console-script entry points in `pyproject.toml`; use the documented
+  `python -m mnist_hub...` module commands.
 
 ## Support
 
