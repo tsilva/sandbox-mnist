@@ -1,12 +1,13 @@
-# sandbox-mnist
+<p align="center">
+  <!-- repo-tagline:start -->
+  <strong>🔢 Noise-conditioned MNIST datasets and denoising experiments 🔢</strong>
+  <!-- repo-tagline:end -->
+</p>
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.6%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hugging Face Datasets](https://img.shields.io/badge/Hugging%20Face-Datasets-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/docs/datasets)
 [![Modal](https://img.shields.io/badge/Modal-GPU%20training-7D4CDB)](https://modal.com/)
-
-**🔢 Noise-conditioned MNIST datasets and denoising experiments 🔢**
-
 ![Iterative conditioned MNIST sampling](artifacts/conditioned_iterative_sampling.png)
 
 ## Overview
