@@ -209,3 +209,7 @@ artifacts/                         # Committed PNG outputs from dataset/model ex
 ## Support
 
 Open an issue or send a PR if you want to extend the dataset recipe, add new corruption families, or compare additional denoising architectures.
+
+## License
+
+[MIT License](LICENSE).
