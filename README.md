@@ -1,3 +1,10 @@
+<!-- archive-repo:deprecation-notice:start -->
+> [!WARNING]
+> **Deprecated**
+>
+> This experimental sandbox has served its purpose and is no longer maintained. Its code and experiment materials remain available here for reference.
+<!-- archive-repo:deprecation-notice:end -->
+
 <p align="center">
   <!-- repo-tagline:start -->
   <strong>🔢 Noise-conditioned MNIST datasets and denoising experiments 🔢</strong>
